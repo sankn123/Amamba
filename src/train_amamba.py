@@ -31,9 +31,9 @@ import seaborn as sn
 from matplotlib.ticker import MaxNLocator
 
 # dataset = "FSC22"
-# dataset = "DCASE19"
+dataset = "DCASE19"
 # dataset = "ESC10"
-dataset = "vocalsound"
+# dataset = "vocalsound"
 
 if_pretrained = True
 plot_cm = True
@@ -41,8 +41,8 @@ plot_cm = True
 
 
 # model_name = "vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
-model_name = "vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
-# model_name = "mixer_b16_224"
+# model_name = "vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
+model_name = "mixer_b16_224"
 
 match dataset:
     case "FSC22":
@@ -60,7 +60,7 @@ match dataset:
         from paths.DCASE19_pathname import *
         Num_Classes = 10       
         r = 0.9 # train/valid split
-        learning_rate=2e-5
+        learning_rate=5e-6
         batch_size=16
         classes = ('airport', 'shopping_mall', 'metro_station', 'street_pedestrian', 'public_square', 
            'street_traffic', 'tram', 'bus', 'metro', 'park')
@@ -139,9 +139,10 @@ if "mixer" in model_name:
     pt_model = timm.create_model(model_name,num_classes = Num_Classes, pretrained = if_pretrained)
     
     class custom_model(nn.Module):
-        def __init___(self, model, Num_Classes):
+        
+        def __init__(self, model, num_classes):
             super().__init__()
-            self.pretrained_layers = nn.Sequential(*list(model.children()[:-1]))
+            self.pretrained_layers = nn.Sequential(*list(model.children())[:-1])
             out = model.head.in_features
             self.fc = nn.Linear(out, Num_Classes)
             self.sm = nn.Softmax()
@@ -151,7 +152,7 @@ if "mixer" in model_name:
             x = self.fc(x)
             return self.sm(x)
     
-    model = custom_model(pt_model,Num_Classes)
+    model = custom_model(model = pt_model, num_classes = Num_Classes)
     
 else:
     model = timm.create_model(model_name,num_classes = Num_Classes)
@@ -207,7 +208,7 @@ def calculate_accuracy(fx, y): # caluate accuracy
     acc = correct.float()/preds.shape[0]
     return acc
 
-def train(model,device,iterator, optimizer, criterion): 
+def train(model,device,iterator, optimizer, criterion, model_name): 
     # early_stopping = EarlyStopping(patience=7, verbose=True)
     
     epoch_loss = 0
@@ -225,6 +226,9 @@ def train(model,device,iterator, optimizer, criterion):
         count=count+1
         #print(x.shape)
         Predicted_Train_Label=model(x)
+        if "mixer" in model_name:
+            Predicted_Train_Label = Predicted_Train_Label.mean(dim=1)
+            
         # print(Predicted_Train_Label.shape)
         # Predicted_Train_Label=x = Predicted_Train_Label.mean(dim=1)
 
@@ -237,7 +241,7 @@ def train(model,device,iterator, optimizer, criterion):
         epoch_acc += acc.item() # sum of training accuracy  
   
     return epoch_loss / len(iterator), epoch_acc / len(iterator)
-def evaluate(model,device,iterator, criterion, final_test = False): # Evaluate Validation accuracy 
+def evaluate(model,device,iterator, criterion, model_name, final_test = False): # Evaluate Validation accuracy 
     #print("Validation Starts")
     epoch_loss = 0
     epoch_acc = 0
@@ -260,6 +264,8 @@ def evaluate(model,device,iterator, criterion, final_test = False): # Evaluate V
             y=y.to(device) # Transfer label  to device 
             count=count+1
             Predicted_Label = model(x) # Predict claa label 
+            if "mixer" in model_name:
+                Predicted_Label = Predicted_Label.mean(dim=1)
             # Predicted_Label=Predicted_Label.mean(dim=1)
             loss = criterion(Predicted_Label, y) # Compute Loss 
             acc = calculate_accuracy(Predicted_Label, y) # compute Accuracy
@@ -306,10 +312,10 @@ vals["val_acc"] = []
 
 for epoch in range(EPOCHS):
     start_time=time.time() # Compute Start Time 
-    train_loss, train_acc = train(model,device,train_loader,optimizer, criterion) # Call Training Process 
+    train_loss, train_acc = train(model,device,train_loader,optimizer, criterion, model_name) # Call Training Process 
     train_loss=round(train_loss,2) # Round training loss 
     train_acc=round(train_acc,2) # Round training accuracy 
-    valid_loss, valid_acc,_,_,_ = evaluate(model,device,valid_loader,criterion) # Call Validation Process 
+    valid_loss, valid_acc,_,_,_ = evaluate(model,device,valid_loader,criterion, model_name) # Call Validation Process 
     valid_loss=round(valid_loss,2) # Round validation loss
     valid_acc=round(valid_acc,2) # Round accuracy 
     end_time=(time.time()-start_time) # Compute End time 
@@ -334,7 +340,7 @@ for epoch in range(EPOCHS):
     model.load_state_dict(torch.load(MODEL_SAVE_PATH))
 
 model.load_state_dict(torch.load(MODEL_SAVE_PATH)) # load the trained model 
-test_loss, test_acc,p,r,f1, y_pred, y_true = evaluate(model, device, test_loader, criterion,final_test = True) # Compute Test Accuracy on Unseen Signals 
+test_loss, test_acc,p,r,f1, y_pred, y_true = evaluate(model, device, test_loader, criterion, model_name,final_test = True) # Compute Test Accuracy on Unseen Signals 
 test_loss=round(test_loss,2)# Round test loss
 test_acc=round(test_acc,2) # Round test accuracy
 
