@@ -4,4 +4,4 @@
 2. `src/get_tsne.py` : Plots the Tsne.
 3. `src/plot_cm.py` : Plots the Confusion Matrix
 4. `src/train_amamba.py` : Script to train Audio Mamba
-5. `src/utils` : Contains paths to the dataset along with dataloaders.
+5. `utils` : Contains paths to the dataset along with dataloaders.
