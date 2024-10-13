@@ -8,9 +8,9 @@ import torchvision.transforms as transforms
 import json
 import seaborn as sns
 import sys
-sys.path.append("/mnt/r/sankn-2/Amamba/Vim-main/vim")
+sys.path.append("path to Vim-main/vim")
 import models_mamba
-sys.path.append("/mnt/r/sankn-2/Adaptive_KD/training_scripts/utils")
+sys.path.append("path to utils")
 from custom_dataloaders import *
 from torchmetrics import Accuracy
 
@@ -39,8 +39,8 @@ match dataset:
         Num_Classes = 2
         
 
-log_file = f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/log.txt'
-model_weights = f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/best_checkpoint.pth'
+log_file = f'log_files/{dataset}/log.txt'
+model_weights = f'log_files/{dataset}/best_checkpoint.pth'
 train_loss = []
 test_loss = []
 test_acc1 = []
@@ -92,9 +92,7 @@ model.load_state_dict(checkpoint_model, strict=False)
 model = model.to("cuda")
 # testing
 data_transformations = transforms.Compose([ # Training Transform 
-    transforms.Resize([224,224]),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485], std=[0.229])])
+        transforms.ToTensor()])
 
 Test_Dataset=Test_Data(Test_Label_Path, Test_Data_Path, H5py_Path,transform=data_transformations)
 test_loader=DataLoader(dataset=Test_Dataset,batch_size=8,shuffle=True,drop_last=True) # Create Test Dataloader 
@@ -106,8 +104,7 @@ y_pred = []
 accuracy = Accuracy(task="multiclass", num_classes=Num_Classes).to("cuda")
 acc = 0
 for data,label in test_loader:
-    
-    data=torch.cat([data,data,data],dim=1)
+  
     data = data.to("cuda")
     label = label.to("cuda")
     
@@ -139,7 +136,7 @@ cm = confusion_matrix(y_true, y_pred)
 cmd = ConfusionMatrixDisplay(cm, display_labels=[0, 1])  # Adjust labels accordingly
 cmd.plot(cmap=plt.cm.Blues)
 plt.title(f"{dataset} Confusion Matrix")
-plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/CF_{dataset}.pdf')
+plt.savefig(f'log_files/{dataset}/CF_{dataset}.pdf')
 
 
 print("Classification Report:")
@@ -160,4 +157,4 @@ ax2.plot(epochs, test_acc1, label='Test Accuracy', color='tab:green')
 ax2.legend(loc='upper left')
 
 plt.title("Learning Curve")
-plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{dataset}_learning_curve.pdf') 
+plt.savefig(f'log_files/{dataset}/{dataset}_learning_curve.pdf') 

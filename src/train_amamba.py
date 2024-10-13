@@ -2,9 +2,9 @@ import numpy as np
 import torch 
 import timm
 import sys
-sys.path.append("/mnt/r/sankn-2/Amamba/Vim-main/vim")
+sys.path.append("path to Vim-main/vim")
 import models_mamba
-sys.path.append("/mnt/r/sankn-2/Adaptive_KD/training_scripts/utils")
+sys.path.append("path to utils")
 
 from custom_dataloaders import *
 from pytorchtools import EarlyStopping
@@ -42,7 +42,7 @@ plot_cm = True
 
 # model_name = "vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
 # model_name = "vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
-model_name = "mixer_b16_224"
+
 
 match dataset:
     case "FSC22":
@@ -59,9 +59,9 @@ match dataset:
     case "DCASE19":
         from paths.DCASE19_pathname import *
         Num_Classes = 10       
-        r = 0.9 # train/valid split
-        learning_rate=5e-6
-        batch_size=16
+        r = 0.95 # train/valid split
+        learning_rate=2e-4
+        batch_size=32
         classes = ('airport', 'shopping_mall', 'metro_station', 'street_pedestrian', 'public_square', 
            'street_traffic', 'tram', 'bus', 'metro', 'park')
 
@@ -70,7 +70,7 @@ match dataset:
         from paths.ESC10_pathname import *
         Num_Classes = 10
         r = 0.9 # train/valid split
-        learning_rate=2e-5
+        learning_rate=1e-5
         batch_size=16
         classes = ('Dogbark', 'Rain', 'Seawaves', 'Babycry', 'Clocktick',
            'sneeze', 'Helicopter', 'Chainsaw', 'Rooster', 'Firecrackling')
@@ -81,7 +81,7 @@ match dataset:
         Num_Classes = 6
         r = 0.9 # train/valid split
         learning_rate=2e-5
-        batch_size=16
+        batch_size=64
         classes = ('Laughter', 'Sigh', 'Cough', 'ThroatClearing', 'Sneeze', 'Snif')
     
         
@@ -90,7 +90,7 @@ match dataset:
         sys.exit()
 
 
-log_path = os.path.join(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}')
+log_path = os.path.join(f'log_files/{dataset}')
 os.makedirs(log_path,exist_ok = True)
 
 MODEL_SAVE_PATH = os.path.join(log_path, f"{model_name}_model.pt")
@@ -119,9 +119,7 @@ torch.backends.cudnn.deterministic = True
 device = torch.device('cuda') # Define device type 
 # warnings.filterwarnings("ignore")
 data_transformations = transforms.Compose([ # Training Transform 
-    transforms.Resize([224,224]),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485], std=[0.229])])
+    transforms.ToTensor()])
 
 train_dataset=Train_Data(Train_Label_Path, Train_Data_Path, H5py_Path, transform=data_transformations) 
 
@@ -135,7 +133,7 @@ train_loader=DataLoader(dataset=Train_Dataset,batch_size=batch_size,shuffle=True
 valid_loader=DataLoader(dataset=Valid_Dataset,batch_size=batch_size,shuffle=False)# Create Validation Dataloader 
 test_loader=DataLoader(dataset=Test_Dataset,batch_size=batch_size,shuffle=False) # Create Test Dataloader 
 
-if "mixer" in model_name:
+if "mixer" in model_name or "vit" in model_name:
     pt_model = timm.create_model(model_name,num_classes = Num_Classes, pretrained = if_pretrained)
     
     class custom_model(nn.Module):
@@ -160,9 +158,9 @@ else:
     if if_pretrained:
        
         if "vim_small" in model_name:
-            checkpoint = torch.load("/mnt/r/sankn-iit/pretrained_model_weights/vim_s_midclstok_ft_81p6acc.pth", map_location='cpu')
+            checkpoint = torch.load("<if checkpoint is available>", map_location='cpu')
         elif "vim_tiny" in model_name:
-            checkpoint = torch.load("/mnt/r/sankn-iit/pretrained_model_weights/vim_t_midclstok_ft_78p3acc.pth", map_location='cpu')
+            checkpoint = torch.load("<if checkpoint is available>", map_location='cpu')
             
 
         checkpoint_model = checkpoint['model']
@@ -218,7 +216,6 @@ def train(model,device,iterator, optimizer, criterion, model_name):
     for i,(x,y) in enumerate(iterator):
         print(i)
         x=x.float()
-        x=torch.cat([x,x,x],dim=1)
         
         x=x.to(device)
         y=y.to(device)# Transfer label  to device
@@ -226,13 +223,10 @@ def train(model,device,iterator, optimizer, criterion, model_name):
         count=count+1
         #print(x.shape)
         Predicted_Train_Label=model(x)
-        if "mixer" in model_name:
+        if "mixer" in model_name or "vit" in model_name:
             Predicted_Train_Label = Predicted_Train_Label.mean(dim=1)
             
-        # print(Predicted_Train_Label.shape)
-        # Predicted_Train_Label=x = Predicted_Train_Label.mean(dim=1)
-
-        # print(Predicted_Train_Label)
+    
         loss = criterion(Predicted_Train_Label, y) # training loss
         acc = calculate_accuracy(Predicted_Train_Label, y) # training accuracy
         loss.backward() # backpropogation 
@@ -258,15 +252,14 @@ def evaluate(model,device,iterator, criterion, model_name, final_test = False): 
     with torch.no_grad(): # Without computation of gredient 
         for (x, y) in iterator:
             x=x.float()
-            x=torch.cat([x,x,x],dim=1)
-            #x=ImageToPatches(x,16)
+            
             x=x.to(device) # Transfer data to device 
             y=y.to(device) # Transfer label  to device 
             count=count+1
             Predicted_Label = model(x) # Predict claa label 
-            if "mixer" in model_name:
+            if "mixer" in model_name or "vit" in model_name:
                 Predicted_Label = Predicted_Label.mean(dim=1)
-            # Predicted_Label=Predicted_Label.mean(dim=1)
+           
             loss = criterion(Predicted_Label, y) # Compute Loss 
             acc = calculate_accuracy(Predicted_Label, y) # compute Accuracy
             Predicted_Label_2=Predicted_Label.detach().cpu().numpy()
@@ -364,7 +357,7 @@ if plot_cm:
     plt.legend()
     plt.grid(True)
     
-    plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{model_name}_{dataset}_loss_curve.pdf')
+    plt.savefig(f'log_files/{dataset}/{model_name}_{dataset}_loss_curve.pdf')
 
     plt.clf()
     plt.plot(vals["train_acc"], label="Train Accuracy", color="green", marker="o")
@@ -377,7 +370,7 @@ if plot_cm:
     plt.legend()
     plt.grid(True)
     
-    plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{model_name}_{dataset}_acc_curve.pdf')
+    plt.savefig(f'log_files/{dataset}/{model_name}_{dataset}_acc_curve.pdf')
 
   
     plt.clf()
@@ -389,7 +382,7 @@ if plot_cm:
     heatmap = sn.heatmap(df_cm, annot=True, cmap = "crest", annot_kws={"size": 14})
     heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=90, fontsize=14)
     heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation=0, fontsize=14)
-    plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{model_name}_{dataset}_cm.pdf',bbox_inches='tight')
+    plt.savefig(f'log_files/{dataset}/{model_name}_{dataset}_cm.pdf',bbox_inches='tight')
     
     if "FSC" in dataset:
         plt.clf()
@@ -400,7 +393,7 @@ if plot_cm:
         heatmap = sn.heatmap(df_cm, annot=True, cmap = "crest", annot_kws={"size": 14}, fmt=".2f")
         heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=90, fontsize=14)
         heatmap.set_yticklabels(heatmap.get_yticklabels(), fontsize=14)
-        plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{model_name}_{dataset}_cm_2.pdf',bbox_inches='tight')
+        plt.savefig(f'log_files/{dataset}/{model_name}_{dataset}_cm_2.pdf',bbox_inches='tight')
    
     
 

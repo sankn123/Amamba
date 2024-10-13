@@ -8,9 +8,9 @@ import torchvision.transforms as transforms
 import json
 import seaborn as sns
 import sys
-sys.path.append("/mnt/r/sankn-2/Amamba/Vim-main/vim")
+sys.path.append("path to Vim-main/vim")
 import models_mamba
-sys.path.append("/mnt/r/sankn-2/Adaptive_KD/training_scripts/utils")
+sys.path.append("path to utils")
 from custom_dataloaders import *
 from sklearn.manifold import TSNE
 import seaborn as sns
@@ -24,7 +24,7 @@ dataset = "vocalsound"
 
 # model_name = "vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
 # model_name = "vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2"
-model_name = "mixer_b16_224"
+
 
 match dataset:
     case "FSC22":
@@ -47,21 +47,21 @@ match dataset:
         
 
 if "vim_tiny" in model_name:
-    model_weights = f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/tiny_model.pt'
+    model_weights = f'log_files/{dataset}/tiny_model.pt'
     model = timm.create_model(model_name,num_classes = Num_Classes)
     
     checkpoint = torch.load(model_weights, map_location='cpu')
     model.load_state_dict(checkpoint, strict=False)
     
 elif "vim_small" in model_name:
-    model_weights = f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/model.pt'
+    model_weights = f'log_files/{dataset}/model.pt'
     model = timm.create_model(model_name,num_classes = Num_Classes)
     
     checkpoint = torch.load(model_weights, map_location='cpu')
     model.load_state_dict(checkpoint, strict=False)
 
 elif "mixer" in model_name:
-    model_weights = f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/mixer_b16_224_model.pt'
+    model_weights = f'log_files/{dataset}/mixer_b16_224_model.pt'
     
     pt_model = timm.create_model(model_name, num_classes = Num_Classes)
     
@@ -98,12 +98,8 @@ model.eval()
 
 # testing
 data_transformations = transforms.Compose([ # Training Transform 
-    transforms.Resize([224,224]),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485], std=[0.229])])
+    transforms.ToTensor()])
 
-# Test_Dataset=Test_Data(Test_Label_Path, Test_Data_Path, H5py_Path,transform=data_transformations)
-# test_loader=DataLoader(dataset=Test_Dataset,batch_size=1,shuffle=True,drop_last=True) # Create Test Dataloader 
 
 train_dataset=Train_Data(Train_Label_Path, Train_Data_Path, H5py_Path, transform=data_transformations) 
 train_loader=DataLoader(dataset=train_dataset,batch_size=1,shuffle=True, drop_last = True)
@@ -117,7 +113,6 @@ for _ in range(len(train_loader)):
     data, label = next(loader_iter) 
     labels.append(label)
     
-    data=torch.cat([data,data,data],dim=1)
     data = data.to("cuda")
     label = label.to("cuda")
     with torch.no_grad():
@@ -167,8 +162,8 @@ ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
 plt.tight_layout()
 
 if "vim_small" in model_name:
-    plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{dataset}_tsne.pdf', bbox_inches='tight')
+    plt.savefig(f'log_files/{dataset}/{dataset}_tsne.pdf', bbox_inches='tight')
 elif "vim_tiny" in model_name:
-    plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/tiny_{dataset}_tsne.pdf', bbox_inches='tight')
+    plt.savefig(f'log_files/{dataset}/tiny_{dataset}_tsne.pdf', bbox_inches='tight')
 elif "mixer" in model_name:
-    plt.savefig(f'/mnt/r/sankn-2/Amamba/log_files/{dataset}/{model_name}_{dataset}_tsne.pdf', bbox_inches='tight')
+    plt.savefig(f'log_files/{dataset}/{model_name}_{dataset}_tsne.pdf', bbox_inches='tight')
